@@ -1,35 +1,38 @@
 version: 2.1
 
 orbs:
-  java: circleci/java@1.1
   codecov: codecov/codecov@4.0.1
 
 jobs:
-  build-and-test:
+  build:
     docker:
-      - image: cimg/openjdk:17.0
+      - image: cimg/openjdk:8.0
 
-    working_directory: ~/repo
+    environment:
+      JVM_OPTS: -Xmx3200m
+      TERM: dumb
 
     steps:
       - checkout
 
-      - java/restore-cache
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle.kts" }}
+            - v1-dependencies-
 
-      - run:
-          name: "Tải Dependencies"
-          command: mvn dependency:go-offline
+      - run: gradle dependencies
 
-      - java/save-cache
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: v1-dependencies-{{ checksum "build.gradle.kts" }}
 
-      - run:
-          name: "Chạy Test và Tạo Báo cáo Coverage"
-          command: mvn verify
+      - run: gradle test jacocoTestReport
 
       - codecov/upload:
-          file: "target/site/jacoco/jacoco.xml"
+          file: build/reports/jacoco/test/jacocoTestReport.xml
 
 workflows:
-  main-workflow:
+  build-and-test-java:
     jobs:
-      - build-and-test
+      - build
